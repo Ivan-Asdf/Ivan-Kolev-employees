@@ -38,7 +38,7 @@
       let rows = text.split("\n");
       rows = rows.map((row) => row.split(",").map((s) => s.trim()));
 
-      let EmpIDIndex, ProjectIDIndex, DataFromIndex, DataToIndex;
+      let EmpIDIndex, ProjectIDIndex, DateFromIndex, DateToIndex;
       for (let i = 0; i < rows[0].length; i++) {
         let rowName = rows[0][i];
         try {
@@ -56,8 +56,8 @@
         if (!projects[row[ProjectIDIndex]]) projects[row[ProjectIDIndex]] = [];
         projects[row[ProjectIDIndex]].push({
           id: row[EmpIDIndex],
-          from: row[DataFromIndex],
-          to: row[DataToIndex],
+          from: row[DateFromIndex],
+          to: row[DateToIndex],
         });
       }
 
@@ -72,7 +72,7 @@
 
       function findIntersection(from1, to1, from2, to2) {
         // Simple math function
-        if (from2 > to1 || from1 > to2) return 0;
+        if (from2 > to1 || from1 > to2) return -1;
 
         let from = Math.max(from1, from2);
         let to = Math.min(to1, to2);
@@ -106,11 +106,16 @@
               let emp2From = getDate(emp2.from);
               let emp2To = getDate(emp2.to);
 
-              let daysTogether =
-                findIntersection(emp1From, emp1To, emp2From, emp2To) /
-                  MSECS_PER_DAY +
-                1;
-              addTimeTogether(id, emp1.id, emp2.id, daysTogether);
+              let daysTogether = findIntersection(
+                emp1From,
+                emp1To,
+                emp2From,
+                emp2To
+              );
+              if (daysTogether != -1) {
+                daysTogether = daysTogether / MSECS_PER_DAY + 1;
+                addTimeTogether(id, emp1.id, emp2.id, daysTogether);
+              }
             }
           }
         }
