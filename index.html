@@ -60,7 +60,6 @@
           to: row[DataToIndex],
         });
       }
-      console.log(projects);
 
       // Defining helper functions for the calculations loop
       function getDate(dateString) {
@@ -107,7 +106,6 @@
               let emp2From = getDate(emp2.from);
               let emp2To = getDate(emp2.to);
 
-              // console.log(emp1, emp2);
               let daysTogether =
                 findIntersection(emp1From, emp1To, emp2From, emp2To) /
                   MSECS_PER_DAY +
@@ -117,13 +115,11 @@
           }
         }
       }
-      console.log(results);
       renderResultsTable(results);
     }
 
     function renderResultsTable(results) {
       const oldTable = document.querySelector("table");
-      console.log(oldTable);
       if (oldTable) oldTable.remove();
       const table = document.createElement("table");
 
