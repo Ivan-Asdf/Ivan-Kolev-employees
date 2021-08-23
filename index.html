@@ -1,19 +1,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <style>
-      textarea {
-        height: 200px;
-        width: 300px;
-      }
-      table,
-      th,
-      td {
-        margin-top: 10px;
-        border: 1px solid black;
-        border-collapse: collapse;
-      }
-    </style>
+    <link rel="stylesheet" href="index.css" />
     <script src="https://unpkg.com/vue@next"></script>
   </head>
   <body>
@@ -25,7 +13,7 @@
         {{mostWorkedTogether[0].split(",")[1]}} <br />Have worked the most days
         together on common projects. <br />Total days {{mostWorkedTogether[1]}}
       </p>
-      <table>
+      <table v-if="results">
         <tr>
           <th>Employee ID #1</th>
           <th>Employee ID #2</th>
@@ -44,7 +32,7 @@
             <td>{{employeePair.split(",")[0]}}</td>
             <td>{{employeePair.split(",")[1]}}</td>
             <td>{{projectID}}</td>
-            <td>{{daysWorked.days}}</td>
+            <td>{{daysWorked}}</td>
           </tr>
         </template>
       </table>
@@ -55,9 +43,7 @@
       data() {
         return {
           text: "",
-          results: {
-            10: { "123, 213": 2 },
-          },
+          results: null,
           mostWorkedTogether: null,
         };
       },
@@ -69,12 +55,7 @@
         onChange(e) {
           e.target.files[0].text().then((text) => {
             this.text = text;
-            console.log(this.results);
             this.parseInput(text);
-            // this.results = {
-            //   10: [{ "123, 213": 2 }],
-            // };
-            // console.log(this.results);
           });
         },
 
@@ -133,9 +114,9 @@
             if (!results[projectId]) results[projectId] = {};
 
             if (!results[projectId][employeePair])
-              results[projectId][employeePair] = 0;
+              results[projectId][employeePair] = [];
 
-            results[projectId][employeePair] = data;
+            results[projectId][employeePair].push(data);
           }
 
           // Calculation loop for time spend working together on same project
@@ -152,6 +133,9 @@
                   let emp2From = getDate(emp2.from);
                   let emp2To = getDate(emp2.to);
 
+                  if (emp1From > emp1To || emp2From > emp2To)
+                    throw new Error("Invalid date input");
+
                   let data = findIntersection(
                     emp1From,
                     emp1To,
@@ -166,9 +150,6 @@
               }
             }
           }
-          this.results = results;
-          // renderResultsTable(results);
-          console.log(results);
 
           // Key: EmployeePair, Value: Days worked together data{days, from, to}
           totalDaysWorked = {};
@@ -176,9 +157,9 @@
             for (let employeePair in results[projectId]) {
               if (!totalDaysWorked[employeePair])
                 totalDaysWorked[employeePair] = [];
-              totalDaysWorked[employeePair].push(
-                results[projectId][employeePair]
-              );
+              for (let interval_data of results[projectId][employeePair]) {
+                totalDaysWorked[employeePair].push(interval_data);
+              }
             }
           }
 
@@ -238,55 +219,22 @@
               maxEmployeePair = employeePair;
             }
           }
-          console.log(max, maxEmployeePair);
           this.mostWorkedTogether = [maxEmployeePair, max];
+
+          // Sum times for same pair and project
+          for (project in results) {
+            for (pair in results[project]) {
+              let sum = 0;
+              for (time of results[project][pair]) {
+                sum += time.days;
+              }
+              results[project][pair] = sum;
+            }
+          }
+          this.results = results;
         },
       },
     };
     Vue.createApp(App).mount("#app");
-
-    function renderResultsTable(results) {
-      const oldTable = document.querySelector("table.old");
-
-      if (oldTable) oldTable.remove();
-      const table = document.createElement("table");
-      table.setAttribute("class", "old");
-
-      const trHeader = document.createElement("tr");
-      const thEmployee1 = document.createElement("th");
-      const thEmployee2 = document.createElement("th");
-      const thProject = document.createElement("th");
-      const thDaysWorked = document.createElement("th");
-      thEmployee1.textContent = "Employee ID #1";
-      thEmployee2.textContent = "Employee ID #2";
-      thProject.textContent = "Project ID";
-      thDaysWorked.textContent = "Days worked";
-      trHeader.appendChild(thEmployee1);
-      trHeader.appendChild(thEmployee2);
-      trHeader.appendChild(thProject);
-      trHeader.appendChild(thDaysWorked);
-      table.appendChild(trHeader);
-
-      for (let projectId in results) {
-        for (let employeePair in results[projectId]) {
-          const tr = document.createElement("tr");
-          const tdEmployee1 = document.createElement("td");
-          const tdEmployee2 = document.createElement("td");
-          const tdProjectId = document.createElement("td");
-          const tdDaysWorked = document.createElement("td");
-          tdEmployee1.textContent = employeePair.split(",")[0];
-          tdEmployee2.textContent = employeePair.split(",")[1];
-          tdProjectId.textContent = projectId;
-          tdDaysWorked.textContent = results[projectId][employeePair];
-          tr.appendChild(tdEmployee1);
-          tr.appendChild(tdEmployee2);
-          tr.appendChild(tdProjectId);
-          tr.appendChild(tdDaysWorked);
-          table.appendChild(tr);
-        }
-      }
-
-      document.body.appendChild(table);
-    }
   </script>
 </html>
