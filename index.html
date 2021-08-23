@@ -14,119 +14,243 @@
         border-collapse: collapse;
       }
     </style>
+    <script src="https://unpkg.com/vue@next"></script>
   </head>
   <body>
-    <textarea></textarea>
-    <input type="file" />
+    <div id="app">
+      <textarea @input="onInput">{{text}}</textarea>
+      <input type="file" @change="onChange" />
+      <p v-if="mostWorkedTogether">
+        Employee {{mostWorkedTogether[0].split(",")[0]}} and Employee
+        {{mostWorkedTogether[0].split(",")[1]}} <br />Have worked the most days
+        together on common projects. <br />Total days {{mostWorkedTogether[1]}}
+      </p>
+      <table>
+        <tr>
+          <th>Employee ID #1</th>
+          <th>Employee ID #2</th>
+          <th>Project ID</th>
+          <th>Days worked</th>
+        </tr>
+        <template
+          v-if="results"
+          v-for="(value, projectID, index) in results"
+          :key="index"
+        >
+          <tr
+            v-for="(daysWorked, employeePair, index1) of value"
+            :key="employeePair+projectID"
+          >
+            <td>{{employeePair.split(",")[0]}}</td>
+            <td>{{employeePair.split(",")[1]}}</td>
+            <td>{{projectID}}</td>
+            <td>{{daysWorked.days}}</td>
+          </tr>
+        </template>
+      </table>
+    </div>
   </body>
   <script>
-    let textarea = document.querySelector("textarea");
-    let input = document.querySelector("input");
-    input.addEventListener("change", (e) =>
-      e.target.files[0].text().then((text) => {
-        textarea.value = text;
-        parseInput(text);
-      })
-    );
+    const App = {
+      data() {
+        return {
+          text: "",
+          results: {
+            10: { "123, 213": 2 },
+          },
+          mostWorkedTogether: null,
+        };
+      },
+      methods: {
+        onInput(e) {
+          this.parseInput(e.target.value);
+        },
 
-    textarea.addEventListener("input", (e) => {
-      parseInput(e.target.value);
-    });
+        onChange(e) {
+          e.target.files[0].text().then((text) => {
+            this.text = text;
+            console.log(this.results);
+            this.parseInput(text);
+            // this.results = {
+            //   10: [{ "123, 213": 2 }],
+            // };
+            // console.log(this.results);
+          });
+        },
 
-    function parseInput(text) {
-      // Extracting data
-      let rows = text.split("\n");
-      rows = rows.map((row) => row.split(",").map((s) => s.trim()));
+        parseInput(text) {
+          // Extracting data
+          let rows = text.split("\n");
+          rows = rows.map((row) => row.split(",").map((s) => s.trim()));
 
-      let EmpIDIndex, ProjectIDIndex, DateFromIndex, DateToIndex;
-      for (let i = 0; i < rows[0].length; i++) {
-        let rowName = rows[0][i];
-        try {
-          eval(`${rowName}Index`);
-        } catch (err) {
-          throw new Error(`Invalid column named: ${rowName}`);
-        }
-        eval(`${rowName}Index = ${i}`);
-      }
-      rows.shift();
+          let EmpIDIndex, ProjectIDIndex, DateFromIndex, DateToIndex;
+          for (let i = 0; i < rows[0].length; i++) {
+            let rowName = rows[0][i];
+            try {
+              eval(`${rowName}Index`);
+            } catch (err) {
+              throw new Error(`Invalid column named: ${rowName}`);
+            }
+            eval(`${rowName}Index = ${i}`);
+          }
+          rows.shift();
 
-      // Restructuring data with projects as key, and value a list of employees and time range
-      const projects = {};
-      for (let row of rows) {
-        if (!projects[row[ProjectIDIndex]]) projects[row[ProjectIDIndex]] = [];
-        projects[row[ProjectIDIndex]].push({
-          id: row[EmpIDIndex],
-          from: row[DateFromIndex],
-          to: row[DateToIndex],
-        });
-      }
+          // Restructuring data with projects as key, and value a list of employees and time range
+          const projects = {};
+          for (let row of rows) {
+            if (!projects[row[ProjectIDIndex]])
+              projects[row[ProjectIDIndex]] = [];
+            projects[row[ProjectIDIndex]].push({
+              id: row[EmpIDIndex],
+              from: row[DateFromIndex],
+              to: row[DateToIndex],
+            });
+          }
 
-      // Defining helper functions for the calculations loop
-      function getDate(dateString) {
-        if (dateString == "NULL") {
-          nowDate = new Date(Date.now());
-          nowDate.setUTCHours(0, 0, 0, 0);
-          return nowDate;
-        } else return new Date(dateString);
-      }
+          // Defining helper functions for the calculations loop
+          function getDate(dateString) {
+            if (dateString == "NULL") {
+              nowDate = new Date(Date.now());
+              nowDate.setUTCHours(0, 0, 0, 0);
+              return nowDate;
+            } else return new Date(dateString);
+          }
 
-      function findIntersection(from1, to1, from2, to2) {
-        // Simple math function
-        if (from2 > to1 || from1 > to2) return -1;
+          function findIntersection(from1, to1, from2, to2) {
+            // Simple math function
+            if (from2 > to1 || from1 > to2) return -1;
 
-        let from = Math.max(from1, from2);
-        let to = Math.min(to1, to2);
+            let from = Math.max(from1, from2);
+            let to = Math.min(to1, to2);
 
-        return to - from;
-      }
+            return { days: to - from, from: from, to: to };
+          }
 
-      const results = {};
-      function addTimeTogether(projectId, employee1, employee2, days) {
-        const employeePair = [employee1, employee2];
-        employeePair.sort();
-        if (!results[projectId]) results[projectId] = [];
+          const results = {};
+          function addTimeTogether(projectId, employee1, employee2, data) {
+            const employeePair = [employee1, employee2];
+            employeePair.sort();
+            if (!results[projectId]) results[projectId] = {};
 
-        if (!results[projectId][employeePair])
-          results[projectId][employeePair] = 0;
+            if (!results[projectId][employeePair])
+              results[projectId][employeePair] = 0;
 
-        results[projectId][employeePair] += days;
-      }
+            results[projectId][employeePair] = data;
+          }
 
-      // Calculation loop for time spend working together on same project
-      const MSECS_PER_DAY = 86400000;
-      for (let id in projects) {
-        let project = projects[id];
-        for (let i = 0; i < project.length; i++) {
-          for (let j = i; j < project.length; j++) {
-            emp1 = project[i];
-            emp2 = project[j];
-            if (emp1 !== emp2) {
-              let emp1From = getDate(emp1.from);
-              let emp1To = getDate(emp1.to);
-              let emp2From = getDate(emp2.from);
-              let emp2To = getDate(emp2.to);
+          // Calculation loop for time spend working together on same project
+          const MSECS_PER_DAY = 86400000;
+          for (let id in projects) {
+            let project = projects[id];
+            for (let i = 0; i < project.length; i++) {
+              for (let j = i; j < project.length; j++) {
+                emp1 = project[i];
+                emp2 = project[j];
+                if (emp1 !== emp2) {
+                  let emp1From = getDate(emp1.from);
+                  let emp1To = getDate(emp1.to);
+                  let emp2From = getDate(emp2.from);
+                  let emp2To = getDate(emp2.to);
 
-              let daysTogether = findIntersection(
-                emp1From,
-                emp1To,
-                emp2From,
-                emp2To
-              );
-              if (daysTogether != -1) {
-                daysTogether = daysTogether / MSECS_PER_DAY + 1;
-                addTimeTogether(id, emp1.id, emp2.id, daysTogether);
+                  let data = findIntersection(
+                    emp1From,
+                    emp1To,
+                    emp2From,
+                    emp2To
+                  );
+                  if (data != -1) {
+                    data.days = data.days / MSECS_PER_DAY + 1;
+                    addTimeTogether(id, emp1.id, emp2.id, data);
+                  }
+                }
               }
             }
           }
-        }
-      }
-      renderResultsTable(results);
-    }
+          this.results = results;
+          // renderResultsTable(results);
+          console.log(results);
+
+          // Key: EmployeePair, Value: Days worked together data{days, from, to}
+          totalDaysWorked = {};
+          for (let projectId in results) {
+            for (let employeePair in results[projectId]) {
+              if (!totalDaysWorked[employeePair])
+                totalDaysWorked[employeePair] = [];
+              totalDaysWorked[employeePair].push(
+                results[projectId][employeePair]
+              );
+            }
+          }
+
+          // Functions for merging time intervals.
+          // {from: 1, to: 6} + {from: 3, to: 10} = {from: 1, to: 10}
+          // {from: 1, to: 6} + {from: 7, to: 10} = 0 (no intersection)
+          function mergeIntervals(interval1, interval2) {
+            if (interval2.from > interval1.to || interval1.from > interval2.to)
+              return 0;
+            else {
+              const from = Math.min(interval1.from, interval2.from);
+              const to = Math.max(interval1.to, interval2.to);
+              return { days: to - from, from: from, to: to };
+            }
+          }
+
+          // Does the above operation on an array of intervals when applicable, recursively.
+          // Until, final array should contain only non-intersecting intervals
+          function mergeIntervalsArray(intervals) {
+            for (let i = 0; i < intervals.length; i++) {
+              let mergeInterval = null;
+              for (let j = i; j < intervals.length; ++j) {
+                if (i != j) {
+                  mergeInterval = mergeIntervals(intervals[i], intervals[j]);
+                  if (mergeInterval) {
+                    intervals.splice(j, 1);
+                    intervals.splice(i, 1);
+                    intervals.unshift(mergeInterval);
+                    break;
+                  }
+                }
+              }
+              if (mergeInterval) {
+                mergeIntervalsArray(intervals);
+                break;
+              }
+            }
+          }
+          console.log(totalDaysWorked);
+
+          // Merge intersecting time intervals working together
+          for (let employeePair in totalDaysWorked) {
+            mergeIntervalsArray(totalDaysWorked[employeePair]);
+          }
+
+          let max = 0;
+          let maxEmployeePair = null;
+          // Sum non-intersecting time intervals to get total days worked together
+          // And find max one
+          for (let employeePair in totalDaysWorked) {
+            let sum = 0;
+            for (let timeInterval of totalDaysWorked[employeePair]) {
+              sum += timeInterval.days / MSECS_PER_DAY + 1;
+            }
+            if (sum > max) {
+              max = sum;
+              maxEmployeePair = employeePair;
+            }
+          }
+          console.log(max, maxEmployeePair);
+          this.mostWorkedTogether = [maxEmployeePair, max];
+        },
+      },
+    };
+    Vue.createApp(App).mount("#app");
 
     function renderResultsTable(results) {
-      const oldTable = document.querySelector("table");
+      const oldTable = document.querySelector("table.old");
+
       if (oldTable) oldTable.remove();
       const table = document.createElement("table");
+      table.setAttribute("class", "old");
 
       const trHeader = document.createElement("tr");
       const thEmployee1 = document.createElement("th");
